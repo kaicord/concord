@@ -1,5 +1,5 @@
 const EventEmitter = require('events');
-const WebSocket = require('ws');
+const WebSocket = require('isomorphic-ws');
 const WebSocketMessage = require('./wsmessage');
 const opcodes = require('./opcodes');
 
@@ -29,14 +29,15 @@ class WebSocketClient extends EventEmitter {
 
 	connect(gateway=this.DEFAULT_GATEWAY) {
 		this.SOCKET = new WebSocket(gateway);
-
-		this.SOCKET.on('open', () => {
-			this.CONNECTED = true;
-			this.SOCKET.on('message', this.handleMessage.bind(this));
-		});
+		this.SOCKET.onopen = function open() {
+			if (this.SOCKET.readyState === this.SOCKET.OPEN) {
+				this.CONNECTED = true;
+			}
+		}.bind(this);
+		this.SOCKET.onmessage = this.handleMessage.bind(this);
 	}
 
-	handleMessage(data) {
+	handleMessage({ data }) {
 		const message = new WebSocketMessage(data);
 
 		this.LAST_SEQUENCE = message.getSequence();
@@ -45,13 +46,6 @@ class WebSocketClient extends EventEmitter {
 			case opcodes.DISPATCH:
 				const name = message.getEventName();
 				const payload = message.getPayload();
-
-				console.log(name);
-				
-				if (name === 'MESSAGE_CREATE') {
-					console.log(payload);
-					process.exit(0);
-				}
 
 				this.emit(`d-${name.toLowerCase()}`, payload);
 				break;
@@ -70,10 +64,12 @@ class WebSocketClient extends EventEmitter {
 	}
 
 	send(opcode, data) {
-		this.SOCKET.send(JSON.stringify({
-			op: opcode,
-			d: data
-		}));
+		if (this.CONNECTED) {
+			this.SOCKET.send(JSON.stringify({
+				op: opcode,
+				d: data
+			}));
+		}
 	}
 
 	identify(token) {
