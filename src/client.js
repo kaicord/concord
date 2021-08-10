@@ -167,6 +167,10 @@ class ConcordClient {
 		this.getWebSocketClient().connect();
 	}
 
+	getUserSettings() {
+		return this._userSettings;
+	}
+
 	async login(email, password) {
 		const responseData = await this.postRequest(URL_LOGIN, JSON.stringify({ email, password }));
 
@@ -191,6 +195,7 @@ class ConcordClient {
 		const responseData = await this.postRequest(URL_2FA, JSON.stringify({ code, ticket: this.ticket }));
 
 		this._authorizationToken = responseData.token;
+		this._userSettings = await this.getRequest('users/@me/settings');
 
 		if (this._httpLoggedInEventHandler) {
 			this._httpLoggedInEventHandler();
