@@ -4,7 +4,7 @@ const WebSocketClient = require('./wsclient');
 const Guild = require('./guild');
 const Message = require('./message');
 
-const URL_BASE = 'https://discordapp.com/api/v6';
+const URL_BASE = 'https://discordapp.com/api/v8';
 const URL_LOGIN = 'auth/login';
 const URL_2FA = 'auth/mfa/totp';
 const URL_GUILD = 'guilds/%s';
@@ -63,7 +63,7 @@ class ConcordClient {
 		this._websocketClient = new WebSocketClient();
 
 		this.getWebSocketClient().on('connected', () => {
-			this.getWebSocketClient().identify(this._authorizationToken);
+			this.getWebSocketClient().identify(this.getAuthorizationToken());
 		});
 
 		// Setup internal handlers for Discord dispatch events
@@ -155,6 +155,16 @@ class ConcordClient {
 
 	onMessageCreate(handler) {
 		this._websocketMessageCreateEventHandler = handler;
+	}
+
+	ghostLogin(token) {
+		this._authorizationToken = token;
+
+		if (this._httpLoggedInEventHandler) {
+			this._httpLoggedInEventHandler();
+		}
+
+		this.getWebSocketClient().connect();
 	}
 
 	async login(email, password) {
