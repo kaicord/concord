@@ -1,8 +1,8 @@
-const EventEmitter = require('events');
 const { XMLHttpRequest } = require('xmlhttprequest');
 const { format } = require('util');
 const WebSocketClient = require('./wsclient');
 const Guild = require('./guild');
+const Message = require('./message');
 
 const URL_BASE = 'https://discordapp.com/api/v6';
 const URL_LOGIN = 'auth/login';
@@ -12,16 +12,19 @@ const URL_GUILD_MEMBERS = `${URL_GUILD}/members`;
 const URL_CHANNEL = 'channels/%s';
 const URL_CHANNEL_MESSAGES = `${URL_CHANNEL}/messages`;
 
-class ConcordClient extends EventEmitter {
+class ConcordClient {
 	constructor() {
-		super();
+		this._http2FAEventHandler;
+		this._httpLoggedInEventHandler;
+		this._websocketReadyEventHandler;
+		this._websocketMessageCreateEventHandler;
 
-		this.GUILDS = [];
-		this.FRIENDS = [];
+		this._guilds = [];
+		this._friends = [];
 
-		this.TOKEN;
+		this._authorizationToken;
 
-		this.API_CLIENT = {
+		this._httpClient = {
 			request: async function(verb, endpoint, data, options) {
 				return new Promise(resolve => {
 					const xhr = new XMLHttpRequest();
@@ -57,28 +60,50 @@ class ConcordClient extends EventEmitter {
 
 		this.spam = 0;
 
-		this.WS_CLIENT = new WebSocketClient();
+		this._websocketClient = new WebSocketClient();
 
-		this.webSocket().on('connected', () => {
-			this.webSocket().identify(this.TOKEN);
+		this.getWebSocketClient().on('connected', () => {
+			this.getWebSocketClient().identify(this._authorizationToken);
 		});
 
 		// Setup internal handlers for Discord dispatch events
-		this.webSocket().on('d-ready', data => {
+		this.getWebSocketClient().on('d-ready', data => {
 			const { guilds } = data;
 
-			this.GUILDS = guilds.map(data => new Guild(data));
+			this._guilds = guilds.map(data => new Guild(data));
+
+			if (this._websocketReadyEventHandler) {
+				this._websocketReadyEventHandler(data);
+			}
+		});
+
+		this.getWebSocketClient().on('d-message_create', data => {
+			if (this._websocketMessageCreateEventHandler) {
+				this._websocketMessageCreateEventHandler(new Message(data));
+			}
 		});
 	}
 
-	webSocket() {
-		return this.WS_CLIENT;
+	getHTTPClient() {
+		return this._httpClient;
+	}
+
+	getWebSocketClient() {
+		return this._websocketClient;
+	}
+
+	getAuthorizationToken() {
+		return this._authorizationToken;
+	}
+
+	getGuilds() {
+		return this._guilds;
 	}
 
 	async getRequest(endpoint) {
-		const response = await this.API_CLIENT.get(endpoint, {
+		const response = await this.getHTTPClient().get(endpoint, {
 			headers: {
-				authorization: this.TOKEN
+				authorization: this._authorizationToken
 			}
 		});
 
@@ -97,11 +122,11 @@ class ConcordClient extends EventEmitter {
 	async postRequest(endpoint, data) {
 		const headers = {};
 
-		if (this.TOKEN) {
-			headers.authorization = this.TOKEN;
+		if (this._authorizationToken) {
+			headers.authorization = this._authorizationToken;
 		}
 		
-		const response = await this.API_CLIENT.post(endpoint, data, { headers });
+		const response = await this.getHTTPClient().post(endpoint, data, { headers });
 
 		if (response.status != 200) {
 			console.log(endpoint);
@@ -116,28 +141,52 @@ class ConcordClient extends EventEmitter {
 		return response.json;
 	}
 
+	onTwoFactorAuthenticationRequired(handler) {
+		this._http2FAEventHandler = handler;
+	}
+
+	onLoggedIn(handler) {
+		this._httpLoggedInEventHandler = handler;
+	}
+
+	onReady(handler) {
+		this._websocketReadyEventHandler = handler;
+	}
+
+	onMessageCreate(handler) {
+		this._websocketMessageCreateEventHandler = handler;
+	}
+
 	async login(email, password) {
 		const responseData = await this.postRequest(URL_LOGIN, JSON.stringify({ email, password }));
 
 		if (responseData.mfa) {
 			this.ticket = responseData.ticket;
 
-			this.emit('2fa');
+			if (this._http2FAEventHandler) {
+				this._http2FAEventHandler();
+			}
 		} else {
-			this.TOKEN = responseData.token;
+			this._authorizationToken = responseData.token;
 
-			this.emit('loggedin');
-			this.webSocket().connect();
+			if (this._httpLoggedInEventHandler) {
+				this._httpLoggedInEventHandler();
+			}
+
+			this.getWebSocketClient().connect();
 		}
 	}
 
 	async mfa(code) {
 		const responseData = await this.postRequest(URL_2FA, JSON.stringify({ code, ticket: this.ticket }));
 
-		this.TOKEN = responseData.token;
+		this._authorizationToken = responseData.token;
 
-		this.emit('loggedin');
-		this.webSocket().connect();
+		if (this._httpLoggedInEventHandler) {
+			this._httpLoggedInEventHandler();
+		}
+
+		this.getWebSocketClient().connect();
 	}
 
 	async getGuildMembers(guildID, { after = 0, limit = 1 }) {

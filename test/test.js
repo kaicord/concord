@@ -23,22 +23,20 @@ const client = new ConcordClient();
 
 // Setup basic client events
 
-// 2fa is emitted when you need to provide a 2FA code
-client.on('2fa', async () => {
+client.onTwoFactorAuthenticationRequired(async () => {
 	const mfacode = await question('2FA Code: ');
 	client.mfa(mfacode);
 });
 
-// loggedin is emitted when the HTTP client has successfully logged in
-client.on('loggedin', () => {
-	client.webSocket().connect();
+client.onMessageCreate(message => {
+	console.log(message);
 });
 
 // Setup WebSocket events
 // When Discord sends a DISPATCH event it will be emitted with the "d" prefix and the event name in lowercase
-client.webSocket().once('d-ready', () => {
+client.onReady(() => {
 	// Do stuff with the guild and channel info
-	const guilds = client.GUILDS;
+	const guilds = client.getGuilds();
 
 	console.log(guilds[0].getIconUrl());
 
