@@ -27,7 +27,7 @@ class ConcordClient {
 		this._httpClient = {
 			request: async function(verb, endpoint, data, options) {
 				return new Promise(resolve => {
-					const xhr = new XMLHttpRequest();
+					const xhr = new XMLHttpRequest({ mozSystem: true });
 					xhr.addEventListener('load', function () {
 						const response = {
 							status: xhr.status,
