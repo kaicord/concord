@@ -1,5 +1,5 @@
 const EventEmitter = require('events');
-const axios = require('axios');
+const { XMLHttpRequest } = require('xmlhttprequest');
 const { format } = require('util');
 const WebSocketClient = require('./wsclient');
 const Guild = require('./guild');
@@ -21,14 +21,39 @@ class ConcordClient extends EventEmitter {
 
 		this.TOKEN;
 
-		this.API_CLIENT = axios.create({
-			baseURL: URL_BASE,
-			//timeout: 1000,
-			headers: {
-				'Content-Type': 'application/json',
+		this.API_CLIENT = {
+			request: async function(verb, endpoint, data, options) {
+				return new Promise(resolve => {
+					const xhr = new XMLHttpRequest();
+					xhr.addEventListener('load', function () {
+						const response = {
+							status: xhr.status,
+							body: xhr.responseText,
+							json: JSON.parse(xhr.responseText)
+						};
+						resolve(response);
+					});
+					xhr.open(verb, `${URL_BASE}/${endpoint}`);
+					xhr.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
+
+					if (options.headers) {
+						for (const key in options.headers) {
+							if (Object.hasOwnProperty.call(options.headers, key)) {
+								xhr.setRequestHeader(key, options.headers[key]);
+							}
+						}
+					}
+
+					xhr.send(data);
+				});
 			},
-			validateStatus: null
-		});
+			get: async function (endpoint, options) {
+				return this.request('get', endpoint, null, options);
+			},
+			post: async function(endpoint, data, options) {
+				return this.request('post', endpoint, data, options);
+			}
+		};
 
 		this.spam = 0;
 
@@ -66,7 +91,7 @@ class ConcordClient extends EventEmitter {
 
 		this.spam++;
 
-		return response.data;
+		return response.json;
 	}
 
 	async postRequest(endpoint, data) {
@@ -88,7 +113,7 @@ class ConcordClient extends EventEmitter {
 
 		this.spam++;
 
-		return response.data;
+		return response.json;
 	}
 
 	async login(email, password) {

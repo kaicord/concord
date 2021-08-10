@@ -46,7 +46,6 @@ client.webSocket().once('d-ready', () => {
 	client.sendMessage('343011339918245892', {
 		content: 'test message from concord'
 	});
-
 	*/
 	
 	/*
