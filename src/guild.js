@@ -6,7 +6,11 @@ class Guild {
 		this._name = data.name;
 		this._icon = data.icon;
 		this._name = data.name;
-		this._channels = data.channels.map(data => new Channel(data, this));
+		if (data.unavailable) {
+			this._channels = [];
+		} else {
+			this._channels = data.channels.map(data => new Channel(data, this));
+		}
 	}
 
 	getID() {
