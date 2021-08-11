@@ -20,6 +20,7 @@ class ConcordClient {
 		this._httpLoggedInEventHandler;
 		this._websocketReadyEventHandler;
 		this._websocketMessageCreateEventHandler;
+		this._websocketGuildCreateEventHandler;
 
 		this._guilds = [];
 		this._friends = [];
@@ -82,6 +83,12 @@ class ConcordClient {
 		this.getWebSocketClient().on('d-message_create', data => {
 			if (this._websocketMessageCreateEventHandler) {
 				this._websocketMessageCreateEventHandler(new Message(data));
+			}
+		});
+
+		this.getWebSocketClient().on('d-guild_create', data => {
+			if (this._websocketGuildCreateEventHandler) {
+				this._websocketGuildCreateEventHandler(new Guild(data));
 			}
 		});
 	}
@@ -157,6 +164,10 @@ class ConcordClient {
 
 	onMessageCreate(handler) {
 		this._websocketMessageCreateEventHandler = handler;
+	}
+
+	onGuildCreate(handler) {
+		this._websocketGuildCreateEventHandler = handler;
 	}
 
 	async ghostLogin(token) {
