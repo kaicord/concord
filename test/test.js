@@ -1,6 +1,6 @@
 const readline = require('readline');
 const { promisify } = require('util');
-const ConcordClient = require('../src/client');
+const ConcordClient = require('..').Client;
 require('colors');
 
 // Create input interface for text
