@@ -7,6 +7,7 @@ const Message = require('./message');
 const URL_BASE = 'https://discordapp.com/api/v8';
 const URL_LOGIN = 'auth/login';
 const URL_2FA = 'auth/mfa/totp';
+const URL_USER_SETTINGS = 'users/@me/settings';
 const URL_GUILD = 'guilds/%s';
 const URL_GUILD_MEMBERS = `${URL_GUILD}/members`;
 const URL_CHANNEL = 'channels/%s';
@@ -157,8 +158,9 @@ class ConcordClient {
 		this._websocketMessageCreateEventHandler = handler;
 	}
 
-	ghostLogin(token) {
+	async ghostLogin(token) {
 		this._authorizationToken = token;
+		this._userSettings = await this.getRequest(URL_USER_SETTINGS);
 
 		if (this._httpLoggedInEventHandler) {
 			this._httpLoggedInEventHandler();
@@ -182,6 +184,7 @@ class ConcordClient {
 			}
 		} else {
 			this._authorizationToken = responseData.token;
+			this._userSettings = await this.getRequest(URL_USER_SETTINGS);
 
 			if (this._httpLoggedInEventHandler) {
 				this._httpLoggedInEventHandler();
@@ -195,7 +198,7 @@ class ConcordClient {
 		const responseData = await this.postRequest(URL_2FA, JSON.stringify({ code, ticket: this.ticket }));
 
 		this._authorizationToken = responseData.token;
-		this._userSettings = await this.getRequest('users/@me/settings');
+		this._userSettings = await this.getRequest(URL_USER_SETTINGS);
 
 		if (this._httpLoggedInEventHandler) {
 			this._httpLoggedInEventHandler();
