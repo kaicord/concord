@@ -1,4 +1,5 @@
-const { XMLHttpRequest } = require('xmlhttprequest');
+/*global XMLHttpRequest*/ // for eslint
+const XHR = (typeof XMLHttpRequest === 'undefined') ? require('xmlhttprequest').XMLHttpRequest : XMLHttpRequest;
 const { format } = require('util');
 const WebSocketClient = require('./wsclient');
 const Guild = require('./guild');
@@ -28,7 +29,7 @@ class ConcordClient {
 		this._httpClient = {
 			request: async function(verb, endpoint, data, options) {
 				return new Promise(resolve => {
-					const xhr = new XMLHttpRequest({ mozSystem: true });
+					const xhr = new XHR({ mozSystem: true });
 					xhr.addEventListener('load', function () {
 						const response = {
 							status: xhr.status,
